@@ -4,7 +4,7 @@
 { pkgs }:
 {
   packages = with pkgs; [
-    opencode
+    llm-agents.opencode
     bashInteractive
     coreutils
     gitMinimal

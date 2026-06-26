@@ -69,3 +69,19 @@ pre-step (we have no such input — nixpkgs is the only flake input, so we updat
 unconditionally); branch is `main` not `master`; no container/VM/docs jobs.
 Validated with `actionlint` (rc=0, includes shellcheck of the embedded scripts).
 Note: these only run once the repo is pushed to GitHub (no remote yet).
+
+## 2026-06-26 — Switch opencode from nixpkgs to llm-agents.nix
+
+The opencode from nixpkgs (1.17.7 on the pinned nixos-unstable) was reported
+broken. Switched to `github:numtide/llm-agents.nix`, which provides opencode
+via direct GitHub release binary download (v1.17.10, daily auto-updated).
+
+Changes:
+- Added `llm-agents` flake input, following nixpkgs.
+- Applied `llm-agents.overlays.default` providing `pkgs.llm-agents.opencode`.
+- Every `pkgs.opencode` reference replaced with `pkgs.llm-agents.opencode`:
+  `flake.nix` (default symlinkJoin path), `nix/sandbox-spec.nix` (in-sandbox
+  PATH package).
+- `update-flake.yml` now keeps opencode current via llm-agents' daily lock
+  updates instead of nixpkgs bumps.
+- `nix flake check` passes; all three packages build with opencode 1.17.10.

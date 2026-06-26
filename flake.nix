@@ -3,13 +3,20 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    llm-agents = {
+      url = "github:numtide/llm-agents.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, llm-agents }:
     let
       supportedSystems = [ "x86_64-linux" "aarch64-linux" ];
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-      pkgsFor = system: import nixpkgs { inherit system; };
+      pkgsFor = system: import nixpkgs {
+        inherit system;
+        overlays = [ llm-agents.overlays.default ];
+      };
     in
     {
       packages = forAllSystems (system:
@@ -20,7 +27,7 @@
             name = "opencode-sandbox";
             paths = [
               (pkgs.callPackage ./nix/backends/bubblewrap.nix { })
-              pkgs.opencode
+              pkgs.llm-agents.opencode
             ];
           };
 

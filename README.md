@@ -5,7 +5,7 @@
 
 Launch sandboxed [opencode](https://github.com/sst/opencode) sessions using Nix.
 
-opencode runs inside an unprivileged [bubblewrap](https://github.com/containers/bubblewrap)
+opencode is packaged via [numtide/llm-agents.nix](https://github.com/numtide/llm-agents.nix) (daily auto-updated) and runs inside an unprivileged [bubblewrap](https://github.com/containers/bubblewrap)
 sandbox with filesystem isolation: it can read and write a single project
 directory, its own auth/config persist across runs, and git/ssh/gh credentials
 are forwarded read-only so `git push` / `gh` keep working. This mirrors the
@@ -26,8 +26,7 @@ nix run github:jhhuh/opencode-nix-sandbox#sandbox -- --shell /path/to/project
 nix run github:jhhuh/opencode-nix-sandbox#no-network -- /path/to/project
 ```
 
-Install both the sandbox wrapper and an un-sandboxed `opencode` on your PATH,
-pinned to the same version:
+Install both the sandbox wrapper and an un-sandboxed `opencode` (from `numtide/llm-agents.nix`) on your PATH:
 
 ```bash
 nix profile install github:jhhuh/opencode-nix-sandbox
@@ -86,7 +85,7 @@ CLI. If you don't want that, run `#no-network` or remove those files from
 
 | Package      | Description                                          | Requires        |
 | ------------ | ---------------------------------------------------- | --------------- |
-| `default`    | Bubblewrap sandbox + un-sandboxed opencode (bundled) | User namespaces |
+| `default`    | Bubblewrap sandbox + un-sandboxed opencode from [llm-agents.nix](https://github.com/numtide/llm-agents.nix) | User namespaces |
 | `sandbox`    | Bubblewrap sandbox only                              | User namespaces |
 | `no-network` | Bubblewrap sandbox with `--unshare-net`              | User namespaces |
 
