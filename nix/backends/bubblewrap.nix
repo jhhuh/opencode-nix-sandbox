@@ -96,20 +96,10 @@ writeShellApplication {
       gh_args+=(--ro-bind "$HOME/.config/gh" "$sandbox_home/.config/gh")
     fi
 
-    # Curated provider-key env forwarding (+ user override list)
+    # bwrap inherits the host environment (no --clearenv), so provider keys
+    # like ANTHROPIC_API_KEY/ANTHROPIC_BASE_URL flow through transparently.
+    # The entries below are explicit --setenv overrides on top of that.
     env_args=()
-    for var in \
-      ANTHROPIC_API_KEY \
-      OPENAI_API_KEY \
-      OPENROUTER_API_KEY \
-      GEMINI_API_KEY \
-      GOOGLE_GENERATIVE_AI_API_KEY \
-      GROQ_API_KEY \
-      ''${OPENCODE_SANDBOX_FORWARD_ENV:-}; do
-      if [[ -n "''${!var:-}" ]]; then
-        env_args+=(--setenv "$var" "''${!var}")
-      fi
-    done
 
     if [[ "$gh_token" == true ]]; then
       for var in GH_TOKEN GITHUB_TOKEN; do

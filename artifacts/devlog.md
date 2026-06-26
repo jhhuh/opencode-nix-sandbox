@@ -85,3 +85,13 @@ Changes:
 - `update-flake.yml` now keeps opencode current via llm-agents' daily lock
   updates instead of nixpkgs bumps.
 - `nix flake check` passes; all three packages build with opencode 1.17.10.
+
+## 2026-06-26 — Drop redundant curated env forwarding
+
+bwrap runs without `--clearenv`, so the full host environment is inherited
+into the sandbox. That means `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`, and any
+other provider vars already flow through transparently. The curated provider-key
+`--setenv` loop and the `OPENCODE_SANDBOX_FORWARD_ENV` override were therefore
+dead logic that implied an allowlist boundary the code never enforced. Removed
+the loop; transparent inheritance is the documented contract now. Decision:
+keep env pass-through transparent (no `--clearenv`) per user requirement.
