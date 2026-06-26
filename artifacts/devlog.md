@@ -56,3 +56,16 @@ backend of `jhhuh/claude-code-nix-sandbox`.
 - design doc, implementation plan
 - `Add bubblewrap backend, sandbox spec, and flake`
 - `Use realpath -m so invalid project-dir hits friendly error under set -e`
+
+## 2026-06-25 — CI + flake autoupdate
+
+Mirrored the reference's GitHub Actions (`.github/workflows/`):
+- `ci.yml` — builds `default`/`sandbox`/`no-network` on push/PR to `main`.
+- `update-flake.yml` — daily (03:00 UTC) `nix flake update` → `nix build` →
+  commit+push `flake.lock`. Keeps opencode current via nixpkgs bumps.
+
+Deltas vs reference: dropped its "check upstream `sadjow/claude-code-nix`"
+pre-step (we have no such input — nixpkgs is the only flake input, so we update
+unconditionally); branch is `main` not `master`; no container/VM/docs jobs.
+Validated with `actionlint` (rc=0, includes shellcheck of the embedded scripts).
+Note: these only run once the repo is pushed to GitHub (no remote yet).
