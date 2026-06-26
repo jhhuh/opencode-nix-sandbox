@@ -54,7 +54,7 @@ writeShellApplication {
       exit 1
     fi
 
-    project_dir="$(realpath "$1")"
+    project_dir="$(realpath -m "$1")"
     shift
 
     if [[ ! -d "$project_dir" ]]; then
