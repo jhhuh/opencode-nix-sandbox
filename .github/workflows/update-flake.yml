@@ -14,7 +14,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Cheap upstream pre-check (mirrors claude-code-nix-sandbox): if
+      # llm-agents.nix's default branch hasn't moved past the pinned rev,
+      # skip everything below — Nix is never installed.
+      - name: Check upstream for changes
+        id: check
+        run: |
+          LATEST=$(gh api repos/numtide/llm-agents.nix/commits/main --jq '.sha')
+          CURRENT=$(jq -r '.nodes["llm-agents"].locked.rev' flake.lock)
+          echo "latest=$LATEST current=$CURRENT"
+          echo "changed=$( [ "$LATEST" != "$CURRENT" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: cachix/install-nix-action@v30
+        if: steps.check.outputs.changed == 'true'
         with:
           extra_nix_config: |
             accept-flake-config = true
@@ -23,27 +37,32 @@ jobs:
       # llm-agents rev currently pinned in flake.lock.
       - name: opencode version (before)
         id: before
+        if: steps.check.outputs.changed == 'true'
         run: |
           rev=$(jq -r '.nodes["llm-agents"].locked.rev' flake.lock)
           echo "version=$(nix eval --raw "github:numtide/llm-agents.nix/$rev#packages.x86_64-linux.opencode.version")" >> "$GITHUB_OUTPUT"
 
       - name: Update flake inputs
+        if: steps.check.outputs.changed == 'true'
         run: nix flake update
 
       - name: opencode version (after)
         id: after
+        if: steps.check.outputs.changed == 'true'
         run: |
           rev=$(jq -r '.nodes["llm-agents"].locked.rev' flake.lock)
           echo "version=$(nix eval --raw "github:numtide/llm-agents.nix/$rev#packages.x86_64-linux.opencode.version")" >> "$GITHUB_OUTPUT"
 
-      # Only proceed when the opencode version actually changed; otherwise the
-      # nixpkgs bump is noise and the updated flake.lock is discarded with the runner.
+      # llm-agents.nix is a multi-tool monorepo, so a rev bump does not imply an
+      # opencode change. Only build/commit when opencode's version actually moved;
+      # otherwise the nixpkgs bump is noise and the updated flake.lock is discarded
+      # with the runner.
       - name: Build default package
-        if: steps.before.outputs.version != steps.after.outputs.version
+        if: steps.check.outputs.changed == 'true' && steps.before.outputs.version != steps.after.outputs.version
         run: nix build
 
       - name: Commit and push
-        if: steps.before.outputs.version != steps.after.outputs.version
+        if: steps.check.outputs.changed == 'true' && steps.before.outputs.version != steps.after.outputs.version
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
