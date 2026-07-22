@@ -24,7 +24,7 @@ jobs:
       - name: opencode version (before)
         id: before
         run: |
-          rev=$(jq -r '.nodes.llm-agents.locked.rev' flake.lock)
+          rev=$(jq -r '.nodes["llm-agents"].locked.rev' flake.lock)
           echo "version=$(nix eval --raw "github:numtide/llm-agents.nix/$rev#packages.x86_64-linux.opencode.version")" >> "$GITHUB_OUTPUT"
 
       - name: Update flake inputs
@@ -33,7 +33,7 @@ jobs:
       - name: opencode version (after)
         id: after
         run: |
-          rev=$(jq -r '.nodes.llm-agents.locked.rev' flake.lock)
+          rev=$(jq -r '.nodes["llm-agents"].locked.rev' flake.lock)
           echo "version=$(nix eval --raw "github:numtide/llm-agents.nix/$rev#packages.x86_64-linux.opencode.version")" >> "$GITHUB_OUTPUT"
 
       # Only proceed when the opencode version actually changed; otherwise the
