@@ -95,3 +95,34 @@ other provider vars already flow through transparently. The curated provider-key
 dead logic that implied an allowlist boundary the code never enforced. Removed
 the loop; transparent inheritance is the documented contract now. Decision:
 keep env pass-through transparent (no `--clearenv`) per user requirement.
+
+
+## 2026-07-22 — Fix flake-update auto-update (jq bug + upstream overlay break)
+
+The daily `update-flake.yml` had failed 25 runs straight (~10s each). Root
+cause: `jq -r '.nodes.llm-agents.locked.rev'` parses the hyphen as
+subtraction (`.nodes.llm` minus `agents`) → `jq: error: agents/0 is not
+defined`. Fixed with bracket syntax `.nodes["llm-agents"]`.
+
+With that fixed, a manual run got all the way to the build gate and caught a
+*real* upstream break: newer `llm-agents.nix` dropped `overlays.default`
+(now only `overlays.shared-nixpkgs`), so `pkgs.llm-agents.opencode` no longer
+resolved (`attribute 'default' missing`). The build-before-commit gate
+correctly refused to commit the broken lock. Fix: take opencode from
+`llm-agents.packages.${system}.opencode` and thread it explicitly through
+`callPackage` → `sandbox-spec.nix`, dropping the overlay entirely. Builds
+against both old (1.17.10) and new (1.18.4) upstream. Bumped the lock to
+1.18.4 in the same session.
+
+Also restructured the workflow to match claude-code-nix-sandbox: a `gh api
+repos/numtide/llm-agents.nix/commits/main` pre-check gates every step, so a
+no-movement day skips the Nix install entirely (~5s no-op) instead of always
+installing Nix + double-evaluating. Kept the opencode-*version* commit gate on
+top (llm-agents.nix is a multi-tool monorepo; a rev bump need not touch
+opencode). Verified: triggered run went green as a clean skip.
+
+Aside: chased a suspected "re-link provider every session" bug — turned out to
+be a false alarm (provider links do persist). opencode writes `auth.json`
+in-place (no atomic rename) inside the bound `~/.local/share/opencode`, so the
+directory bind already persists auth; the claude `~/.claude.json` fd-copy trick
+addresses an atomic-rename race opencode doesn't have.
