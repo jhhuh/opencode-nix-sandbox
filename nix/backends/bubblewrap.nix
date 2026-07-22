@@ -13,6 +13,8 @@
   bubblewrap,
   cacert,
   coreutils,
+  # opencode package (passed explicitly from llm-agents.packages, not via an overlay)
+  opencode,
   # Toggle host network access (set false to --unshare-net)
   network ? true,
   # Additional packages available inside the sandbox
@@ -20,7 +22,7 @@
 }:
 
 let
-  spec = import ../sandbox-spec.nix { inherit pkgs; };
+  spec = import ../sandbox-spec.nix { inherit pkgs opencode; };
 
   sandboxPath = symlinkJoin {
     name = "opencode-sandbox-path";

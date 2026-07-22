@@ -1,10 +1,10 @@
 # Single source of truth for what lives inside the sandbox:
 #  - packages: tools placed on the in-sandbox PATH (includes opencode itself)
 #  - hostEtcPaths: host /etc files bind-mounted read-only for DNS/TLS/user lookup
-{ pkgs }:
+{ pkgs, opencode }:
 {
   packages = with pkgs; [
-    llm-agents.opencode
+    opencode
     bashInteractive
     coreutils
     gitMinimal

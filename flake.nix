@@ -13,29 +13,29 @@
     let
       supportedSystems = [ "x86_64-linux" "aarch64-linux" ];
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-      pkgsFor = system: import nixpkgs {
-        inherit system;
-        overlays = [ llm-agents.overlays.default ];
-      };
+      pkgsFor = system: import nixpkgs { inherit system; };
     in
     {
       packages = forAllSystems (system:
-        let pkgs = pkgsFor system;
+        let
+          pkgs = pkgsFor system;
+          opencode = llm-agents.packages.${system}.opencode;
         in {
           # Bubblewrap wrapper + un-sandboxed opencode (both on PATH)
           default = pkgs.symlinkJoin {
             name = "opencode-sandbox";
             paths = [
-              (pkgs.callPackage ./nix/backends/bubblewrap.nix { })
-              pkgs.llm-agents.opencode
+              (pkgs.callPackage ./nix/backends/bubblewrap.nix { inherit opencode; })
+              opencode
             ];
           };
 
           # Bubblewrap sandbox wrapper only
-          sandbox = pkgs.callPackage ./nix/backends/bubblewrap.nix { };
+          sandbox = pkgs.callPackage ./nix/backends/bubblewrap.nix { inherit opencode; };
 
           # Variant with network isolation
           no-network = pkgs.callPackage ./nix/backends/bubblewrap.nix {
+            inherit opencode;
             network = false;
           };
         });
