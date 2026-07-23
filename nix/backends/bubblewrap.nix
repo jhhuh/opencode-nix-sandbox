@@ -67,6 +67,31 @@ writeShellApplication {
     sandbox_home="$HOME"
     runtime_dir="/run/user/$(id -u)"
 
+    # Display forwarding — opencode reads images from the host clipboard by
+    # shelling out to xclip (X11) / wl-paste (Wayland), which need the host's
+    # display socket. Text copy uses OSC 52 and works without any of this.
+    x11_args=()
+    if [[ -n "''${DISPLAY:-}" ]] && [[ "$DISPLAY" == *:* ]]; then
+      display_nr="''${DISPLAY/#*:}"
+      display_nr="''${display_nr/%.*}"
+      local_socket="/tmp/.X11-unix/X$display_nr"
+      x11_args+=(--tmpfs /tmp/.X11-unix)
+      x11_args+=(--ro-bind-try "$local_socket" "$local_socket")
+    fi
+
+    xauth_args=()
+    if [[ -n "''${XAUTHORITY:-}" ]] && [[ -e "$XAUTHORITY" ]]; then
+      xauth_args+=(--ro-bind "$XAUTHORITY" "$XAUTHORITY")
+    fi
+
+    wayland_args=()
+    if [[ -n "''${WAYLAND_DISPLAY:-}" ]] && [[ -n "''${XDG_RUNTIME_DIR:-}" ]]; then
+      wayland_socket="$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
+      if [[ -e "$wayland_socket" ]]; then
+        wayland_args+=(--ro-bind "$wayland_socket" "$wayland_socket")
+      fi
+    fi
+
     # opencode auth + config persistence (read-write)
     data_args=()
     host_data_dir="''${XDG_DATA_HOME:-$HOME/.local/share}/opencode"
@@ -111,6 +136,15 @@ writeShellApplication {
       done
     fi
 
+    if [[ -n "''${DISPLAY:-}" ]]; then
+      env_args+=(--setenv DISPLAY "$DISPLAY")
+    fi
+    if [[ -n "''${WAYLAND_DISPLAY:-}" ]]; then
+      env_args+=(--setenv WAYLAND_DISPLAY "$WAYLAND_DISPLAY")
+    fi
+    if [[ -n "''${XAUTHORITY:-}" ]]; then
+      env_args+=(--setenv XAUTHORITY "$XAUTHORITY")
+    fi
     if [[ -n "''${SSH_AUTH_SOCK:-}" ]]; then
       env_args+=(--setenv SSH_AUTH_SOCK "$SSH_AUTH_SOCK")
     fi
@@ -156,6 +190,9 @@ writeShellApplication {
       --dir /usr/bin \
       --symlink "${sandboxPath}/bin/bash" /usr/bin/bash \
       --ro-bind-try /usr/bin/env /usr/bin/env \
+      "''${x11_args[@]}" \
+      "''${xauth_args[@]}" \
+      "''${wayland_args[@]}" \
       "''${env_args[@]}" \
       --setenv HOME "$sandbox_home" \
       --setenv PATH "${sandboxPath}/bin" \

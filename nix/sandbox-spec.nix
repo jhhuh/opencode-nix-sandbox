@@ -17,6 +17,11 @@
     which
     cacert
     gh
+    # opencode reads images from the host clipboard by shelling out to a
+    # clipboard binary: xclip (X11) or wl-paste (Wayland). Text copy uses OSC 52
+    # and needs neither. Both are shipped since we forward both display sockets.
+    xclip
+    wl-clipboard
   ];
 
   hostEtcPaths = [
