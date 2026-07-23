@@ -5,6 +5,7 @@
 {
   packages = with pkgs; [
     opencode
+    nix
     bashInteractive
     coreutils
     gitMinimal
@@ -19,6 +20,7 @@
   ];
 
   hostEtcPaths = [
+    "/etc/nix"
     "/etc/resolv.conf"
     "/etc/hosts"
     "/etc/nsswitch.conf"

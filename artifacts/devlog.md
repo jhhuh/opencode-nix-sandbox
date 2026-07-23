@@ -126,3 +126,19 @@ be a false alarm (provider links do persist). opencode writes `auth.json`
 in-place (no atomic rename) inside the bound `~/.local/share/opencode`, so the
 directory bind already persists auth; the claude `~/.claude.json` fd-copy trick
 addresses an atomic-rename race opencode doesn't have.
+
+## 2026-07-23 — Add missing `nix` to the sandbox
+
+Reported: `nix` unavailable inside opencode-sandbox. Not a regression — `nix`
+was never in `nix/sandbox-spec.nix`'s package set, so it was never on the
+in-sandbox PATH (`--setenv PATH "${sandboxPath}/bin"` fully replaces PATH). The
+confusing part: the backend already carried the daemon plumbing
+(`--bind-try /nix/var/nix/daemon-socket`, `--setenv NIX_REMOTE daemon`,
+`--ro-bind-try /run/current-system/sw`) copied from claude-code-nix-sandbox at
+scaffold time, but the `nix` client binary itself and the `/etc/nix` bind were
+dropped. So the socket was bound to a daemon nothing inside could reach.
+
+Fix (restores parity with the reference spec): add `nix` to `spec.packages` and
+`/etc/nix` to `hostEtcPaths` (so nix.conf substituters/trusted-keys/
+experimental-features are visible). `nix build .#sandbox` green; verified
+`nix 2.34.8` + all `nix-*` symlinks resolve on the sandbox PATH.
