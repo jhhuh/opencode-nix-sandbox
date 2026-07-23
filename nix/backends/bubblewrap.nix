@@ -1,6 +1,7 @@
 # Bubblewrap sandbox backend for opencode.
 #
-# Usage: opencode-sandbox [--shell] [--gh-token] <project-dir> [opencode args...]
+# Usage: opencode-sandbox [--shell] [--gh-token] [project-dir] [-- opencode args...]
+#        project-dir defaults to the current directory; args after -- go to opencode
 #
 # Produces a writeShellApplication wrapping bwrap to isolate opencode with
 # access to a single project directory. Persists opencode auth/config by
@@ -40,25 +41,33 @@ writeShellApplication {
   text = ''
     shell_mode=false
     gh_token=false
-    while [[ "''${1:-}" == --* ]]; do
-      case "''${1:-}" in
-        --shell) shell_mode=true; shift ;;
+    project_dir="."
+    opencode_args=()
+
+    usage() {
+      echo "Usage: opencode-sandbox [OPTIONS] [project-dir] [-- opencode args...]" >&2
+      echo "" >&2
+      echo "  project-dir defaults to the current directory ('.')." >&2
+      echo "  Anything after '--' is passed straight to opencode." >&2
+      echo "" >&2
+      echo "  --shell     Drop into bash instead of launching opencode" >&2
+      echo "  --gh-token  Forward GH_TOKEN/GITHUB_TOKEN env vars into the sandbox" >&2
+    }
+
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --shell)    shell_mode=true; shift ;;
         --gh-token) gh_token=true; shift ;;
-        --help|-h) break ;;
-        *) echo "Unknown option: $1" >&2; exit 1 ;;
+        --help|-h)  usage; exit 0 ;;
+        --)         shift; opencode_args=("$@"); break ;;
+        -*)         echo "Unknown option: $1 (pass opencode args after '--')" >&2; exit 1 ;;
+        *)          project_dir="$1"; shift
+                    if [[ "''${1:-}" == "--" ]]; then shift; fi
+                    opencode_args=("$@"); break ;;
       esac
     done
 
-    if [[ $# -lt 1 ]] || [[ "''${1:-}" == "--help" ]] || [[ "''${1:-}" == "-h" ]]; then
-      echo "Usage: opencode-sandbox [--shell] [--gh-token] <project-dir> [opencode args...]" >&2
-      echo "  --shell     Drop into bash instead of launching opencode" >&2
-      echo "  --gh-token  Forward GH_TOKEN/GITHUB_TOKEN env vars into the sandbox" >&2
-      exit 1
-    fi
-
-    project_dir="$(realpath -m "$1")"
-    shift
-
+    project_dir="$(realpath -m "$project_dir")"
     if [[ ! -d "$project_dir" ]]; then
       echo "Error: $project_dir is not a directory" >&2
       exit 1
@@ -159,7 +168,7 @@ writeShellApplication {
     if [[ "$shell_mode" == true ]]; then
       entrypoint=(bash)
     else
-      entrypoint=(opencode "$@")
+      entrypoint=(opencode "''${opencode_args[@]}")
     fi
 
     exec bwrap \
@@ -195,6 +204,8 @@ writeShellApplication {
       "''${wayland_args[@]}" \
       "''${env_args[@]}" \
       --setenv HOME "$sandbox_home" \
+      --setenv OPENCODE_SANDBOX 1 \
+      --setenv OPENCODE_SANDBOX_BACKEND bubblewrap \
       --setenv PATH "${sandboxPath}/bin" \
       --setenv TERM "''${TERM:-xterm-256color}" \
       --setenv NIX_REMOTE daemon \

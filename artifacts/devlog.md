@@ -142,3 +142,43 @@ Fix (restores parity with the reference spec): add `nix` to `spec.packages` and
 `/etc/nix` to `hostEtcPaths` (so nix.conf substituters/trusted-keys/
 experimental-features are visible). `nix build .#sandbox` green; verified
 `nix 2.34.8` + all `nix-*` symlinks resolve on the sandbox PATH.
+
+## 2026-07-23 — X11 clipboard forwarding + CLI ergonomics (port of two claude commits)
+
+Ported claude-code-nix-sandbox `5c3c29c` (xclip clipboard) and `fbe41ca`
+(self-awareness notice + optional project-dir / `--`), adapted to opencode.
+
+**Clipboard — adapted, not verbatim.** claude's `/copy` shells out to xclip.
+opencode is different: it copies *text* via **OSC 52** (found `osc52_support`,
+`OSC52`, and the raw `ESC ]52;c` escape in the binary) — no clipboard binary or
+X11 needed for copy. Its only clipboard-*binary* use is reading an `image/png`
+**from** the host clipboard (`xclip -selection clipboard` on X11, `wl-paste` on
+Wayland). Per user request ("bind X socket in any case"), did the full package:
+added `xclip` + `wl-clipboard` to spec.packages, and X11/Xauthority/Wayland
+socket forwarding + `DISPLAY`/`WAYLAND_DISPLAY`/`XAUTHORITY` setenv to the
+bwrap backend (mirrors the reference's forwarding block). Verified a real X
+CLIPBOARD round-trip through the forwarded socket (write via one `--shell`
+invocation, read back `xclip -selection clipboard -o` in another → same string),
+nested through the outer claude sandbox that already forwards `DISPLAY=:0`.
+Gotcha: `printf x | xclip -selection clipboard` *hangs* a piped `--shell` — xclip
+daemonizes a holder process to serve the selection, so stdin never sees EOF;
+test connectivity with readback (`-o`), which returns immediately.
+
+**CLI ergonomics — ported.** project-dir now defaults to `.`; everything after
+`--` goes straight to opencode; `usage()` fn; unknown `-*` errors with a
+`use '--'` hint. Kept this repo's `realpath -m` (milestone-1 friendly-error
+fix), not the reference's bare `realpath`. Also set `OPENCODE_SANDBOX=1` +
+`OPENCODE_SANDBOX_BACKEND=bubblewrap` for hook/prompt detection.
+
+**Skipped:** claude's `--append-system-prompt` self-awareness notice — opencode's
+TUI has no equivalent flag, and its config-instructions mechanism reads file
+globs from the bind-mounted `~/.config/opencode` (writing there would pollute the
+host config). The env var covers programmatic detection; the notice text was
+low-value for interactive human use. (User agreed to skip.)
+
+Verified: `nix flake check` + `nix build .#sandbox .#no-network` green; `--help`
+rc=0 with new usage; `--bogus` rejected (rc=1); bare invocation defaults to cwd;
+`. -- --version` runs `opencode --version` inside (1.18.4); `OPENCODE_SANDBOX*`
+and xclip/wl-paste present inside.
+
+New skill: opencode-clipboard-osc52-text-vs-xclip-image-paste.md.
